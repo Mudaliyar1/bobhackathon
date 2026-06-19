@@ -101,6 +101,20 @@ function ensureWebAuthnUserID(user) {
   return crypto.randomBytes(16).toString('base64url');
 }
 
+function shouldAllowOnboardingGrace(user, fingerprintMetadata, deviceTokenTrusted, fingerprintTrusted) {
+  const hasTrustedBaseline = (user.trustedDevices || []).length > 0 || (user.enrolledFingerprints || []).length > 0 || (user.passkeys || []).length > 0;
+
+  if (!hasTrustedBaseline) {
+    return true;
+  }
+
+  if (deviceTokenTrusted || fingerprintTrusted) {
+    return true;
+  }
+
+  return Boolean(fingerprintMetadata.browserFingerprint && fingerprintMetadata.userAgent);
+}
+
 function listPasskeys(user) {
   return Array.isArray(user.passkeys) ? user.passkeys : [];
 }
@@ -272,6 +286,7 @@ async function handleLogin(req, res) {
   const deviceTokenHash = existingTrustToken ? hashToken(existingTrustToken) : null;
   const deviceTokenTrusted = Boolean(deviceTokenHash && user.trustedDeviceTokens.includes(deviceTokenHash));
   const fingerprintTrusted = isFingerprintEnrolled(user, fingerprintMetadata.browserFingerprint);
+  const onboardingGrace = shouldAllowOnboardingGrace(user, fingerprintMetadata, deviceTokenTrusted, fingerprintTrusted);
 
   const riskContext = calculateRisk({
     user,
@@ -280,6 +295,7 @@ async function handleLogin(req, res) {
       networkSignature: deriveNetworkSignature(req),
       deviceTokenTrusted,
       fingerprintTrusted,
+      onboardingGrace,
       incognito: req.body.incognito,
       loginDuration: req.body.loginDuration || (Date.now() - Number(req.body.loginStartTime || Date.now())),
       clientHour: fingerprintMetadata.clientHour,
@@ -349,6 +365,7 @@ async function handleLogin(req, res) {
 
   req.session.sessionVersion = nextSessionVersion;
   req.session.currentFingerprint = riskContext.browserFingerprint;
+  req.session.onboardingGrace = onboardingGrace;
 
   return res.redirect(user.role === 'admin' ? '/admin' : '/portal');
 }
@@ -543,6 +560,7 @@ async function verifyPasskeyAuthentication(req, res) {
   req.session.sessionVersion = Number(user.sessionVersion || 0);
   req.session.passkeyAuthentication = null;
   req.session.currentFingerprint = credential.id;
+  req.session.onboardingGrace = false;
 
   return res.json({ verified: true, redirect: user.role === 'admin' ? '/admin' : '/portal' });
 }
@@ -696,6 +714,7 @@ async function enrollFingerprint(req, res) {
   );
 
   req.session.currentFingerprint = fingerprintMetadata.browserFingerprint;
+  req.session.onboardingGrace = false;
 
   return res.json({
     ok: true,

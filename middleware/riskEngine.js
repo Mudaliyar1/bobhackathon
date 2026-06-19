@@ -31,6 +31,8 @@ function calculateRisk({ user, context, now = new Date() }) {
   const fingerprint = normalizeFingerprint(context.browserFingerprint);
   const network = normalizeNetwork(context.networkSignature);
   const deviceTokenTrusted = context.deviceTokenTrusted === true;
+  const fingerprintTrusted = context.fingerprintTrusted === true;
+  const onboardingGrace = context.onboardingGrace === true;
   const clientHour = Number(context.clientHour);
   const loginHour = Number.isFinite(clientHour) && clientHour >= 0 && clientHour <= 23
     ? Math.round(clientHour)
@@ -39,13 +41,13 @@ function calculateRisk({ user, context, now = new Date() }) {
   const loginDuration = Math.max(Number(context.loginDuration || 0), 0);
   const riskReasons = [];
 
-  const knownDevice = deviceTokenTrusted || user.trustedDevices.includes(fingerprint);
+  const knownDevice = deviceTokenTrusted || fingerprintTrusted || user.trustedDevices.includes(fingerprint);
   const knownNetwork = user.trustedNetworks.includes(network);
 
   if (!knownDevice) {
     riskReasons.push({
       label: 'Unknown Device',
-      points: 35,
+      points: onboardingGrace ? 10 : 35,
       detail: 'The browser fingerprint has not been observed for this account.'
     });
   }
@@ -77,7 +79,7 @@ function calculateRisk({ user, context, now = new Date() }) {
   if (loginDuration > 0 && loginDuration < 3000) {
     riskReasons.push({
       label: 'Rapid Login',
-      points: 10,
+      points: onboardingGrace ? 0 : 10,
       detail: 'The form was submitted faster than expected human login behavior.'
     });
   }

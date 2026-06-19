@@ -36,18 +36,18 @@
         <div class="row g-3 mb-4">
           <div class="col-lg-8">
             <div class="operator-note success h-100">
-              <strong>Passkey Enrollment</strong>
-              <span>Register this browser or mobile device with a real passkey so future logins can use fingerprint-backed verification.</span>
+              <strong>Fingerprint Scan Enrollment</strong>
+              <span>Scan your fingerprint to register this browser or mobile device with a passkey for future biometric logins.</span>
               <div class="d-flex flex-wrap gap-2 mt-2">
-                <button class="btn btn-bob" type="button" data-enroll-passkey>Enroll Current Passkey</button>
-                <span class="align-self-center small text-success" data-fingerprint-status><%= passkeyCount > 0 ? 'Passkey enrolled' : 'No passkey enrolled yet' %></span>
+                <button class="btn btn-bob" type="button" data-enroll-passkey>Scan Fingerprint / Enroll</button>
+                <span class="align-self-center small text-success" data-fingerprint-status><%= passkeyCount > 0 ? 'Fingerprint enrolled' : 'No fingerprint enrolled yet' %></span>
               </div>
-              <small class="text-muted mt-2 d-block">Passkey ID: <span data-current-fingerprint><%= currentFingerprint || 'pending collection' %></span></small>
+              <small class="text-muted mt-2 d-block">Current fingerprint ID: <span data-current-fingerprint><%= currentFingerprint || 'pending collection' %></span></small>
             </div>
           </div>
           <div class="col-lg-4">
             <div class="p-3 border rounded-2 h-100">
-              <strong>Passkey Status</strong>
+              <strong>Fingerprint Status</strong>
               <div class="mt-2 <%= passkeyCount > 0 ? 'text-success' : 'text-warning' %>" data-fingerprint-enrolled-state><%= passkeyCount > 0 ? 'Enrolled' : 'Not enrolled' %></div>
             </div>
           </div>

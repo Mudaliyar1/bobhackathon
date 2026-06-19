@@ -39,6 +39,11 @@
     }
 
     const options = await optionsResponse.json();
+    if (!window.PublicKeyCredential || !navigator.credentials || !navigator.credentials.create) {
+      window.alert('Your browser does not support fingerprint/passkey enrollment. Use a modern browser on a supported device.');
+      return;
+    }
+
     const credential = await navigator.credentials.create({
       publicKey: {
         ...options,
