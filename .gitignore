@@ -1,0 +1,8 @@
+# Security rationale: dependencies, secrets, and local runtime logs must not be
+# committed because they can expose credentials or create noisy deployment diffs.
+node_modules/
+.env
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.DS_Store

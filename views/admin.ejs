@@ -1,0 +1,168 @@
+<!doctype html>
+<html lang="en">
+  <!-- Security rationale: SOC telemetry is rendered server-side and refreshed
+       from authenticated endpoints to monitor ATO challenges in near real time. -->
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>TrustPulse SOC Dashboard</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="/css/style.css" rel="stylesheet">
+  </head>
+  <body class="dashboard" data-dashboard-shell>
+    <nav class="navbar dash-nav">
+      <div class="container-fluid px-4">
+        <span class="navbar-brand text-white d-flex align-items-center gap-2 fw-bold">
+          <span class="brand-mark">BoB</span>
+          TrustPulse SOC Command Center
+        </span>
+        <form method="post" action="/logout">
+          <button class="btn btn-outline-light" type="submit">Logout</button>
+        </form>
+      </div>
+    </nav>
+
+    <main class="container-fluid p-4">
+      <div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
+        <div>
+          <div class="security-kicker">ATO-Shield live telemetry</div>
+          <h1 class="h3 fw-bold mb-0">Adaptive Identity Assurance Command Center</h1>
+        </div>
+        <div class="d-flex align-items-center gap-3">
+          <span class="text-secondary">Threat Heat</span>
+          <span class="heat-indicator" data-heat-indicator data-heat="<%= data.heatLevel.toLowerCase() %>"><%= data.heatLevel %></span>
+        </div>
+      </div>
+
+      <section class="soc-brief mb-4">
+        <div>
+          <span>Mission</span>
+          <strong>Stop valid-password account takeovers before session creation.</strong>
+        </div>
+        <div>
+          <span>Active Policy</span>
+          <strong>Challenge when score reaches global threshold.</strong>
+        </div>
+        <div>
+          <span>Telemetry</span>
+          <strong>Device, network, hour, incognito, speed.</strong>
+        </div>
+      </section>
+
+      <section class="row g-3 mb-4">
+        <div class="col-6 col-xl">
+          <div class="metric-card p-3">
+            <div class="metric-label">Total Attempts</div>
+            <div class="metric-value" data-total-attempts><%= data.totalAttempts %></div>
+          </div>
+        </div>
+        <div class="col-6 col-xl">
+          <div class="metric-card p-3">
+            <div class="metric-label">Successful Sessions</div>
+            <div class="metric-value text-success" data-successful-sessions><%= data.successfulSessions %></div>
+          </div>
+        </div>
+        <div class="col-6 col-xl">
+          <div class="metric-card metric-danger p-3">
+            <div class="metric-label">Challenges Triggered</div>
+            <div class="metric-value" data-challenges-triggered><%= data.challengesTriggered %></div>
+          </div>
+        </div>
+        <div class="col-6 col-xl">
+          <div class="metric-card metric-danger p-3">
+            <div class="metric-label">Threats Prevented</div>
+            <div class="metric-value" data-threats-prevented><%= data.threatsPrevented %></div>
+          </div>
+        </div>
+        <div class="col-12 col-xl">
+          <div class="metric-card p-3">
+            <div class="metric-label">Current Threshold</div>
+            <div class="metric-value"><span data-current-threshold><%= data.currentThreshold %></span></div>
+          </div>
+        </div>
+      </section>
+
+      <section class="row g-4">
+        <div class="col-xl-4">
+          <div class="soc-panel p-4 h-100">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+              <h2 class="h5 mb-0">Global Threshold</h2>
+              <strong><span data-threshold-value><%= data.currentThreshold %></span> / 105</strong>
+            </div>
+            <input class="form-range range-control" type="range" min="0" max="105" value="<%= data.currentThreshold %>" data-threshold-slider>
+            <p class="text-secondary small mb-4">The threshold controls whether a verified-password login becomes a session or an adaptive challenge.</p>
+
+            <h2 class="h5 mb-3">Risk Distribution</h2>
+            <canvas id="riskDistributionChart" height="220"></canvas>
+          </div>
+        </div>
+
+        <div class="col-xl-4">
+          <div class="soc-panel p-4 h-100">
+            <h2 class="h5 mb-3">Attack Replay Timeline</h2>
+            <div class="admin-timeline" data-attack-replay>
+              <% if (data.latestThreat) { %>
+                <% data.latestThreat.replayEvents.forEach(function(event, index) { %>
+                  <div class="timeline-step">
+                    <span><%= index + 1 %></span>
+                    <strong><%= event %></strong>
+                  </div>
+                <% }) %>
+              <% } else { %>
+                <div class="empty-state">No prevented ATO attempt yet.</div>
+              <% } %>
+            </div>
+          </div>
+        </div>
+
+        <div class="col-xl-4">
+          <div class="soc-panel p-4 h-100">
+            <h2 class="h5 mb-3">Live Event Feed</h2>
+            <div data-event-feed>
+              <% if (data.logs.length) { %>
+                <% data.logs.forEach(function(log) { %>
+                  <div class="feed-item <%= log.status === 'CHALLENGED' ? 'feed-danger' : '' %>">
+                    <div>
+                      <strong><%= log.status %></strong>
+                      <span><%= log.user_id ? log.user_id.username : 'unknown' %></span>
+                    </div>
+                    <small><%= log.riskReasons.length ? log.riskReasons.map(function(reason) { return reason.label; }).join(', ') : 'Trusted profile' %></small>
+                  </div>
+                <% }) %>
+              <% } else { %>
+                <div class="empty-state">Awaiting login telemetry.</div>
+              <% } %>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="row g-4 mt-1">
+        <div class="col-xl-7">
+          <div class="soc-panel p-4 h-100">
+            <h2 class="h5 mb-3">ATO Signal Model</h2>
+            <div class="signal-grid">
+              <div><span>Unknown Device</span><strong>+35</strong><small>New browser fingerprint for account</small></div>
+              <div><span>Unknown Network</span><strong>+30</strong><small>Network outside trusted profile</small></div>
+              <div><span>Suspicious Hour</span><strong>+20</strong><small>Login between 1 AM and 5 AM</small></div>
+              <div><span>Incognito Mode</span><strong>+10</strong><small>Persistence and assurance reduced</small></div>
+              <div><span>Rapid Login</span><strong>+10</strong><small>Submitted under 3 seconds</small></div>
+            </div>
+          </div>
+        </div>
+        <div class="col-xl-5">
+          <div class="soc-panel p-4 h-100">
+            <h2 class="h5 mb-3">Operator Playbook</h2>
+            <div class="playbook-step"><strong>1</strong><span>Watch for crimson flash when a challenged event arrives.</span></div>
+            <div class="playbook-step"><strong>2</strong><span>Read the replay timeline to reconstruct the takeover path.</span></div>
+            <div class="playbook-step"><strong>3</strong><span>Use explainability reasons to justify challenge and customer notification.</span></div>
+            <div class="playbook-step"><strong>4</strong><span>Tune threshold during demo to show adaptive policy control.</span></div>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="/js/adminDashboard.js"></script>
+  </body>
+</html>
