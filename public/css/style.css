@@ -263,6 +263,54 @@ body {
   gap: 10px;
 }
 
+.threat-banner {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 18px;
+  border-radius: 8px;
+  color: #fff;
+  background: linear-gradient(90deg, #b91c1c, var(--bob-red));
+}
+
+.threat-banner strong {
+  font-size: 1.25rem;
+}
+
+.otp-simulation {
+  display: grid;
+  gap: 8px;
+  padding: 16px;
+  border-radius: 8px;
+  border: 1px solid #fed7aa;
+  background: #fff7ed;
+}
+
+.otp-simulation span {
+  color: #9a3412;
+}
+
+.otp-boxes {
+  display: flex;
+  gap: 8px;
+}
+
+.otp-boxes i {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 38px;
+  border-radius: 8px;
+  background: #fff;
+  border: 1px solid #fdba74;
+  color: var(--bob-orange);
+  font-style: normal;
+  font-weight: 900;
+}
+
 .incident-strip div {
   padding: 14px;
   border-radius: 8px;
@@ -475,6 +523,59 @@ body {
 
 .portal-panel {
   background: #fff;
+}
+
+.secure-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 40px;
+  padding: 0 14px;
+  border-radius: 999px;
+  color: #065f46;
+  background: #ecfdf5;
+  font-weight: 800;
+}
+
+.bank-widget {
+  height: 100%;
+  padding: 18px;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  background: #fff;
+}
+
+.balance-widget {
+  color: #fff;
+  background: #111827;
+}
+
+.balance-widget span,
+.balance-widget strong,
+.balance-widget small {
+  display: block;
+}
+
+.balance-widget span,
+.balance-widget small {
+  color: #cbd5e1;
+}
+
+.balance-widget strong {
+  margin: 12px 0;
+  font-size: 1.9rem;
+}
+
+.transaction-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 0;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.transaction-row:last-child {
+  border-bottom: 0;
 }
 
 .flow-line.light {

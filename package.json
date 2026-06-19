@@ -17,6 +17,8 @@
   "author": "Bank of Baroda Hackathon 2026",
   "license": "MIT",
   "dependencies": {
+    "@simplewebauthn/browser": "^13.3.0",
+    "@simplewebauthn/server": "^13.3.1",
     "bcryptjs": "^2.4.3",
     "connect-mongo": "^5.1.0",
     "dotenv": "^16.4.7",

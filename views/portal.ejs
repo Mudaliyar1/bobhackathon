@@ -24,9 +24,35 @@
 
     <main class="container py-5">
       <section class="portal-panel p-4 p-md-5">
-        <div class="security-kicker">Session authorized</div>
-        <h1 class="h2 fw-bold">Welcome, <%= user.username %></h1>
-        <p class="muted-copy mb-4">The password was valid and the login context matched the trusted assurance profile, so TrustPulse created the session.</p>
+        <div class="d-flex flex-wrap justify-content-between align-items-start gap-3 mb-3">
+          <div>
+            <div class="security-kicker">Session authorized</div>
+            <h1 class="h2 fw-bold">Welcome, <%= user.username %></h1>
+            <p class="muted-copy mb-0">The password was valid and the login context matched the trusted assurance profile, so TrustPulse created the session.</p>
+          </div>
+          <span class="secure-badge">Secure Session</span>
+        </div>
+
+        <div class="row g-3 mb-4">
+          <div class="col-lg-8">
+            <div class="operator-note success h-100">
+              <strong>Passkey Enrollment</strong>
+              <span>Register this browser or mobile device with a real passkey so future logins can use fingerprint-backed verification.</span>
+              <div class="d-flex flex-wrap gap-2 mt-2">
+                <button class="btn btn-bob" type="button" data-enroll-passkey>Enroll Current Passkey</button>
+                <span class="align-self-center small text-success" data-fingerprint-status><%= passkeyCount > 0 ? 'Passkey enrolled' : 'No passkey enrolled yet' %></span>
+              </div>
+              <small class="text-muted mt-2 d-block">Passkey ID: <span data-current-fingerprint><%= currentFingerprint || 'pending collection' %></span></small>
+            </div>
+          </div>
+          <div class="col-lg-4">
+            <div class="p-3 border rounded-2 h-100">
+              <strong>Passkey Status</strong>
+              <div class="mt-2 <%= passkeyCount > 0 ? 'text-success' : 'text-warning' %>" data-fingerprint-enrolled-state><%= passkeyCount > 0 ? 'Enrolled' : 'Not enrolled' %></div>
+            </div>
+          </div>
+        </div>
+
         <div class="row g-3">
           <div class="col-md-4">
             <div class="p-3 border rounded-2">
@@ -49,6 +75,32 @@
         </div>
 
         <div class="row g-3 mt-4">
+          <div class="col-lg-4">
+            <div class="bank-widget balance-widget">
+              <span>Available Balance</span>
+              <strong>INR 2,48,900.75</strong>
+              <small>Primary savings account</small>
+            </div>
+          </div>
+          <div class="col-lg-4">
+            <div class="bank-widget">
+              <h2 class="h6 fw-bold mb-3">Recent Transactions</h2>
+              <div class="transaction-row"><span>UPI Credit</span><strong>+INR 8,500</strong></div>
+              <div class="transaction-row"><span>Card Payment</span><strong>-INR 2,140</strong></div>
+              <div class="transaction-row"><span>Salary Credit</span><strong>+INR 82,000</strong></div>
+            </div>
+          </div>
+          <div class="col-lg-4">
+            <div class="bank-widget">
+              <h2 class="h6 fw-bold mb-3">Transfer Money</h2>
+              <input class="form-control mb-2" value="bob-demo-beneficiary" aria-label="Beneficiary" readonly>
+              <input class="form-control mb-3" value="5000" aria-label="Amount" readonly>
+              <button class="btn btn-outline-dark w-100" type="button">Protected by TrustPulse</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="row g-3 mt-4">
           <div class="col-lg-7">
             <div class="success-flow">
               <div class="flow-line light">Password Verified</div>
@@ -66,5 +118,14 @@
         </div>
       </section>
     </main>
+    <script>
+      window.__trustpulsePortal = {
+        currentFingerprint: '<%= currentFingerprint || '' %>',
+        fingerprintEnrolled: <%= passkeyCount > 0 ? 'true' : 'false' %>
+      };
+    </script>
+    <script src="/js/portalFingerprint.js"></script>
+    <script src="/js/passkeyPortal.js"></script>
+    <script src="/js/sessionGuard.js"></script>
   </body>
 </html>

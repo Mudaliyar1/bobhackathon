@@ -17,8 +17,8 @@
           TrustPulse: ATO-Shield
         </span>
         <div class="d-flex gap-2">
-          <a class="btn btn-sm btn-outline-light" href="#architecture">Architecture</a>
-          <button class="btn btn-sm btn-bob" type="button" data-fill-admin>SOC Login</button>
+          <a class="btn btn-sm btn-outline-light" href="#architecture">Controls</a>
+          <a class="btn btn-sm btn-bob" href="/admin">SOC Portal</a>
         </div>
       </div>
     </nav>
@@ -27,26 +27,15 @@
       <section class="container hero-grid py-4 py-lg-5">
         <div class="row align-items-center g-4 g-xl-5">
           <section class="col-lg-7">
-            <div class="security-kicker">Bank of Baroda Hackathon 2026</div>
+            <div class="security-kicker">Bank-grade identity assurance</div>
             <h1 class="hero-title mb-3">Detect Account Takeovers before a banking session is created.</h1>
-            <p class="hero-copy mb-4">TrustPulse verifies the password, then blocks suspicious credential-stolen logins using device fingerprint, network trust, time anomaly, incognito signals, and login speed.</p>
-
-            <div class="hero-actions mb-4">
-              <button class="scenario-button active" type="button" data-scenario="trusted">
-                <strong>Trusted Customer</strong>
-                <span>Known device, known network, normal behavior</span>
-              </button>
-              <button class="scenario-button" type="button" data-scenario="attacker">
-                <strong>ATO Attacker</strong>
-                <span>Correct password from hostile context</span>
-              </button>
-            </div>
+            <p class="hero-copy mb-4">TrustPulse evaluates contextual identity trust after password success, combining device fingerprinting, session timing, browser integrity, and risk explainability before a session is created.</p>
 
             <div class="row g-3">
               <div class="col-md-4">
                 <div class="proof-tile">
-                  <span>Session Gate</span>
-                  <strong>Pre-Auth</strong>
+                  <span>Decision Point</span>
+                  <strong>Pre-Session</strong>
                 </div>
               </div>
               <div class="col-md-4">
@@ -78,31 +67,43 @@
 
             <div class="mb-3">
               <label class="form-label" for="username">Username</label>
-              <input class="form-control form-control-lg" id="username" name="username" autocomplete="username" value="trusted" required>
+              <input class="form-control form-control-lg" id="username" name="username" autocomplete="username" placeholder="Enter your username" required>
             </div>
 
             <div class="mb-3">
               <label class="form-label" for="password">Password</label>
-              <input class="form-control form-control-lg" id="password" name="password" type="password" autocomplete="current-password" value="bobsecure123" required>
+              <input class="form-control form-control-lg" id="password" name="password" type="password" autocomplete="current-password" placeholder="Enter your password" required>
             </div>
 
-            <div class="mb-4">
-              <label class="form-label" for="demoMode">Demo Context</label>
-              <select class="form-select form-select-lg" id="demoMode" data-demo-mode>
-                <option value="trusted">Trusted user: known device and network</option>
-                <option value="attacker">ATO attacker: unknown, incognito, rapid login</option>
-              </select>
+            <div class="mb-3">
+              <button class="btn btn-bob btn-lg w-100 mb-2" type="button" data-passkey-login>Login with Fingerprint / Passkey</button>
+              <div class="form-text text-muted">Use a previously enrolled device fingerprint or biometric passkey.</div>
             </div>
 
-            <input type="hidden" name="browserFingerprint">
-            <input type="hidden" name="networkSignature">
+            <div class="mb-3 form-check form-switch">
+              <input class="form-check-input" type="checkbox" role="switch" id="mobileFingerprintEnabled" data-mobile-fingerprint-enabled>
+              <label class="form-check-label" for="mobileFingerprintEnabled">Enable mobile fingerprint</label>
+              <div class="form-text text-muted">On mobile devices, this strengthens the browser fingerprint with touch and hardware signals.</div>
+            </div>
+
+              <input type="hidden" name="fingerprint">
+              <input type="hidden" name="clientHour">
+              <input type="hidden" name="networkScope">
+              <input type="hidden" name="loginStartTime">
               <input type="hidden" name="incognito">
               <input type="hidden" name="loginDuration">
+              <input type="hidden" name="screenWidth">
+              <input type="hidden" name="screenHeight">
+              <input type="hidden" name="userAgent">
+              <input type="hidden" name="language">
+              <input type="hidden" name="timezone">
+              <input type="hidden" name="platform">
+              <input type="hidden" name="localHour">
 
               <div class="telemetry-preview mb-4">
                 <div><span>Device</span><strong data-preview-device>Collecting</strong></div>
                 <div><span>Network</span><strong data-preview-network>Collecting</strong></div>
-                <div><span>Mode</span><strong data-preview-mode>Trusted</strong></div>
+                <div><span>Browser</span><strong data-preview-mode>Collecting</strong></div>
               </div>
 
               <button class="btn btn-bob btn-lg w-100" type="submit">Verify Password and Run ATO-Shield</button>
@@ -115,9 +116,9 @@
         <div class="row g-4">
           <div class="col-lg-4">
             <div class="info-panel h-100">
-              <h2 class="h5 fw-bold">Demo Accounts</h2>
-              <div class="credential-row"><span>Customer</span><strong><%= demo.trusted %></strong></div>
-              <div class="credential-row"><span>SOC Admin</span><strong><%= demo.admin %></strong></div>
+              <h2 class="h5 fw-bold">Access Signals</h2>
+              <div class="credential-row"><span>Fingerprint</span><strong>Browser-bound</strong></div>
+              <div class="credential-row"><span>Network Scope</span><strong>IP-derived</strong></div>
             </div>
           </div>
           <div class="col-lg-4">
@@ -141,6 +142,10 @@
         </div>
       </section>
     </main>
+    <script>
+      window.__trustpulseLogin = { loginUrl: '/login' };
+    </script>
     <script src="/js/contextCollector.js"></script>
+    <script src="/js/passkeyAuth.js"></script>
   </body>
 </html>

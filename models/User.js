@@ -26,8 +26,39 @@ const userSchema = new mongoose.Schema(
       type: [String],
       default: []
     },
+    enrolledFingerprints: {
+      type: [String],
+      default: []
+    },
+    webauthnUserID: {
+      type: String,
+      unique: true,
+      sparse: true,
+      trim: true
+    },
     trustedNetworks: {
       type: [String],
+      default: []
+    },
+    trustedDeviceTokens: {
+      type: [String],
+      default: []
+    },
+    sessionVersion: {
+      type: Number,
+      default: 0
+    },
+    passkeys: {
+      type: [
+        {
+          id: String,
+          publicKey: Buffer,
+          counter: { type: Number, default: 0 },
+          transports: { type: [String], default: [] },
+          deviceType: { type: String, default: 'multiDevice' },
+          backedUp: { type: Boolean, default: false }
+        }
+      ],
       default: []
     },
     role: {

@@ -1,6 +1,4 @@
-const DEFAULT_THRESHOLD = 65;
-
-let globalThreshold = DEFAULT_THRESHOLD;
+const { getThreshold } = require('./configStore');
 
 // Security rationale: the engine is deliberately deterministic and explainable;
 // a bank SOC must justify challenges without exposing raw scoring to customers.
@@ -32,12 +30,16 @@ function buildReplayEvents(riskReasons, decision) {
 function calculateRisk({ user, context, now = new Date() }) {
   const fingerprint = normalizeFingerprint(context.browserFingerprint);
   const network = normalizeNetwork(context.networkSignature);
-  const loginHour = now.getHours();
+  const deviceTokenTrusted = context.deviceTokenTrusted === true;
+  const clientHour = Number(context.clientHour);
+  const loginHour = Number.isFinite(clientHour) && clientHour >= 0 && clientHour <= 23
+    ? Math.round(clientHour)
+    : now.getHours();
   const incognito = context.incognito === true || context.incognito === 'true';
   const loginDuration = Math.max(Number(context.loginDuration || 0), 0);
   const riskReasons = [];
 
-  const knownDevice = user.trustedDevices.includes(fingerprint);
+  const knownDevice = deviceTokenTrusted || user.trustedDevices.includes(fingerprint);
   const knownNetwork = user.trustedNetworks.includes(network);
 
   if (!knownDevice) {
@@ -81,40 +83,25 @@ function calculateRisk({ user, context, now = new Date() }) {
   }
 
   const riskScore = riskReasons.reduce((total, reason) => total + reason.points, 0);
-  const status = riskScore >= globalThreshold ? 'CHALLENGED' : 'ALLOWED';
+  const threshold = getThreshold();
+  const status = riskScore >= threshold ? 'CHALLENGED' : 'ALLOWED';
 
   return {
     status,
     riskScore,
-    threshold: globalThreshold,
+    threshold,
     riskReasons,
     replayEvents: buildReplayEvents(riskReasons, status),
     browserFingerprint: fingerprint,
     networkSignature: network,
+    deviceTrusted: knownDevice,
+    networkTrusted: knownNetwork,
     loginHour,
     incognito,
     loginDuration
   };
 }
 
-function getThreshold() {
-  return globalThreshold;
-}
-
-function setThreshold(value) {
-  const parsed = Number(value);
-
-  if (!Number.isFinite(parsed)) {
-    return globalThreshold;
-  }
-
-  globalThreshold = Math.min(Math.max(Math.round(parsed), 0), 105);
-  return globalThreshold;
-}
-
 module.exports = {
-  DEFAULT_THRESHOLD,
-  calculateRisk,
-  getThreshold,
-  setThreshold
+  calculateRisk
 };

@@ -46,7 +46,10 @@ app.use(
     secret: process.env.SESSION_SECRET || 'trustpulse-hackathon-session-secret',
     resave: false,
     saveUninitialized: false,
-    store: MongoStore.create({ mongoUrl: MONGO_URI }),
+    store: MongoStore.create({
+      mongoUrl: MONGO_URI,
+      touchAfter: 60 * 60
+    }),
     cookie: {
       httpOnly: true,
       sameSite: 'lax',

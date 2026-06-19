@@ -21,11 +21,19 @@
 
     <main class="container py-5">
       <div class="challenge-panel bg-white p-4 p-md-5">
+        <div class="threat-banner mb-4">
+          <strong>Threat Prevented</strong>
+          <span>ATO-Shield stopped this valid-password login before a banking session was created.</span>
+        </div>
         <div class="row g-5">
           <section class="col-lg-6">
-            <div class="security-kicker">Credential-stolen login contained</div>
-            <h1 class="h2 fw-bold mb-3">Banking session blocked before authorization.</h1>
-            <p class="muted-copy">The supplied password was correct, but the login context did not match the customer assurance profile. The system prevented an Account Takeover attempt before a session could be created.</p>
+            <div class="security-kicker">Step-up verification required</div>
+            <h1 class="h2 fw-bold mb-3">High Risk Login Detected</h1>
+            <p class="muted-copy">The supplied password was correct, but the login context did not match the customer assurance profile. TrustPulse blocked the session and requested additional verification before access can continue.</p>
+
+            <% if (error) { %>
+              <div class="alert alert-danger mt-3"><%= error %></div>
+            <% } %>
 
             <div class="incident-strip mt-4">
               <div>
@@ -55,8 +63,22 @@
 
             <div class="operator-note mt-4">
               <strong>SOC Action</strong>
-              <span>Mark as prevented ATO, notify customer through verified channel, and keep session authorization denied until re-assurance succeeds.</span>
+              <span>Mark as prevented ATO, notify the customer through the verified channel, and keep authorization denied until the step-up flow succeeds.</span>
             </div>
+
+            <form class="otp-simulation mt-3" method="post" action="/challenge/verify">
+              <strong>Step-up Verification</strong>
+              <span>Enter the one-time code delivered to the registered channel ending in 42.</span>
+              <div class="row g-2 align-items-center mt-1">
+                <div class="col-sm-8">
+                  <input class="form-control form-control-lg" name="verificationCode" inputmode="numeric" autocomplete="one-time-code" placeholder="6-digit code" required>
+                </div>
+                <div class="col-sm-4 d-grid">
+                  <button class="btn btn-bob btn-lg" type="submit">Approve Session</button>
+                </div>
+              </div>
+              <small class="text-muted">This step-up approval enrolls the browser and network as trusted after successful verification.</small>
+            </form>
           </section>
 
           <section class="col-lg-5 offset-lg-1">
@@ -77,7 +99,7 @@
                 <div class="risk-fill" style="width: <%= Math.min(log.riskScore, 105) / 105 * 100 %>%"></div>
               </div>
             </div>
-            <a class="btn btn-bob mt-4" href="/">Run Another Scenario</a>
+            <a class="btn btn-bob mt-4" href="/">Review Next Login</a>
           </section>
         </div>
       </div>
