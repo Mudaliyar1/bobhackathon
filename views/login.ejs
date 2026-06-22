@@ -75,35 +75,39 @@
               <div class="form-text text-muted">Secure, phishing-resistant cloud-synced passkeys.</div>
             </div>
 
+            <!-- Hidden telemetry fields always present so contextCollector can populate them -->
+            <input type="hidden" name="fingerprint">
+            <input type="hidden" name="clientHour">
+            <input type="hidden" name="networkScope">
+            <input type="hidden" name="loginStartTime">
+            <input type="hidden" name="incognito">
+            <input type="hidden" name="loginDuration">
+            <input type="hidden" name="screenWidth">
+            <input type="hidden" name="screenHeight">
+            <input type="hidden" name="userAgent">
+            <input type="hidden" name="language">
+            <input type="hidden" name="timezone">
+            <input type="hidden" name="platform">
+            <input type="hidden" name="localHour">
+
             <div class="text-center mb-3">
-              <button type="button" class="btn btn-link text-muted small text-decoration-none" onclick="document.getElementById('passwordFallback').classList.toggle('d-none'); document.getElementById('password').required = !document.getElementById('password').required;">First time here? Use Password to Enroll</button>
+              <button type="button" class="btn btn-link text-muted small text-decoration-none"
+                data-bs-toggle="collapse" data-bs-target="#passwordFallback" aria-expanded="false" aria-controls="passwordFallback">
+                First time here? Use Password to Enroll
+              </button>
             </div>
 
-            <div id="passwordFallback" class="d-none">
+            <div id="passwordFallback" class="collapse">
               <div class="mb-3">
                 <label class="form-label" for="password">Password</label>
                 <input class="form-control form-control-lg" id="password" name="password" type="password" autocomplete="current-password" placeholder="Enter your password">
               </div>
 
-            <div class="mb-3 form-check form-switch">
-              <input class="form-check-input" type="checkbox" role="switch" id="mobileFingerprintEnabled" data-mobile-fingerprint-enabled>
-              <label class="form-check-label" for="mobileFingerprintEnabled">Enable mobile fingerprint</label>
-              <div class="form-text text-muted">On mobile devices, this strengthens the browser fingerprint with touch and hardware signals.</div>
-            </div>
-
-              <input type="hidden" name="fingerprint">
-              <input type="hidden" name="clientHour">
-              <input type="hidden" name="networkScope">
-              <input type="hidden" name="loginStartTime">
-              <input type="hidden" name="incognito">
-              <input type="hidden" name="loginDuration">
-              <input type="hidden" name="screenWidth">
-              <input type="hidden" name="screenHeight">
-              <input type="hidden" name="userAgent">
-              <input type="hidden" name="language">
-              <input type="hidden" name="timezone">
-              <input type="hidden" name="platform">
-              <input type="hidden" name="localHour">
+              <div class="mb-3 form-check form-switch">
+                <input class="form-check-input" type="checkbox" role="switch" id="mobileFingerprintEnabled" data-mobile-fingerprint-enabled>
+                <label class="form-check-label" for="mobileFingerprintEnabled">Enable mobile fingerprint</label>
+                <div class="form-text text-muted">On mobile devices, this strengthens the browser fingerprint with touch and hardware signals.</div>
+              </div>
 
               <div class="telemetry-preview mb-4">
                 <div><span>Device</span><strong data-preview-device>Collecting</strong></div>
@@ -113,13 +117,14 @@
 
               <button class="btn btn-outline-dark btn-lg w-100" type="submit">Verify Password (Fallback)</button>
             </div>
-              
-              <div class="mt-4 text-center">
-                <button class="btn btn-link text-muted small text-decoration-none" type="button" data-bs-toggle="modal" data-bs-target="#qrModal">Login via Cross-Device QR</button>
-                <br>
-                <button class="btn btn-link text-muted small text-decoration-none" type="button" data-bs-toggle="modal" data-bs-target="#recoveryModal">Lost device? Use Backup Code</button>
-              </div>
+
+            <div class="mt-4 text-center">
+              <button class="btn btn-link text-muted small text-decoration-none" type="button" data-bs-toggle="modal" data-bs-target="#qrModal">Login via Cross-Device QR</button>
+              <br>
+              <button class="btn btn-link text-muted small text-decoration-none" type="button" data-bs-toggle="modal" data-bs-target="#recoveryModal">Lost device? Use Backup Code</button>
+            </div>
             </form>
+
           </section>
         </div>
       </section>
@@ -213,6 +218,14 @@
     <script src="/js/passkeyAuth.js"></script>
 
     <script>
+      function togglePasswordFallback() {
+        var fallback = document.getElementById('passwordFallback');
+        var pwd = document.getElementById('password');
+        var isHidden = fallback.classList.contains('d-none');
+        fallback.classList.toggle('d-none');
+        if (pwd) pwd.required = isHidden;
+      }
+
       let qrPollInterval = null;
 
       document.getElementById('qrModal').addEventListener('show.bs.modal', async () => {

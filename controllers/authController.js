@@ -226,19 +226,26 @@ async function seedDemoUsers() {
   const customerPassword = await bcrypt.hash('Bank@123', 12);
   const adminPassword = await bcrypt.hash('adminsecure123', 12);
 
+  // Security rationale: $set only updates static fields (password, email, role).
+  // $setOnInsert initialises passkey/fingerprint arrays ONLY when the document is
+  // first created (upsert). This prevents wiping enrolled credentials on every
+  // server restart — a critical bug that would lock every user out after a deploy.
   await User.updateOne(
     { username: 'vijay' },
     {
       $set: {
         email: 'vijay@example.com',
         password: customerPassword,
+        role: 'customer'
+      },
+      $setOnInsert: {
         trustedDevices: [],
         enrolledFingerprints: [],
         trustedNetworks: ['net-127.0.0'],
         trustedDeviceTokens: [],
         sessionVersion: 0,
         passkeys: [],
-        role: 'customer'
+        recoveryCodes: []
       }
     },
     { upsert: true }
@@ -250,13 +257,16 @@ async function seedDemoUsers() {
       $set: {
         email: 'soc.admin@bankofbaroda.com',
         password: adminPassword,
+        role: 'admin'
+      },
+      $setOnInsert: {
         trustedDevices: [],
         enrolledFingerprints: [],
         trustedNetworks: ['net-127.0.0'],
         trustedDeviceTokens: [],
         sessionVersion: 0,
         passkeys: [],
-        role: 'admin'
+        recoveryCodes: []
       }
     },
     { upsert: true }
@@ -944,11 +954,19 @@ async function pollQRStatus(req, res) {
         replayEvents: ['Cross-Device Token Match', 'Session Authorized']
       });
 
+      // Create a valid session for the new device.
+      // CRITICAL: sessionVersion must match the DB value or assertActiveSession
+      // will immediately sign this session out with "newer sign-in detected".
+      const freshUser = await User.findById(user._id).select('sessionVersion username role email');
       req.session.user = {
-        id: user._id,
-        username: user.username,
-        role: user.role
+        id: freshUser._id.toString(),
+        username: freshUser.username,
+        email: freshUser.email || '',
+        role: freshUser.role
       };
+      req.session.sessionVersion = Number(freshUser.sessionVersion || 0);
+      req.session.currentFingerprint = 'qr-approved';
+      req.session.onboardingGrace = false;
 
       return res.json({ success: true, redirect: '/portal' });
     }
