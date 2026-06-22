@@ -388,7 +388,7 @@ async function generatePasskeyRegistrationOptions(req, res) {
   const webauthnUserID = ensureWebAuthnUserID(user);
   const currentOptions = await generateRegistrationOptions({
     rpName: RP_NAME,
-    rpID: RP_ID,
+    rpID: req.hostname,
     userID: isoUint8Array.fromUTF8String(webauthnUserID),
     userName: user.username,
     attestationType: 'none',
@@ -429,8 +429,8 @@ async function verifyPasskeyRegistration(req, res) {
     verification = await verifyRegistrationResponse({
       response: req.body,
       expectedChallenge: currentOptions.challenge,
-      expectedOrigin: RP_ORIGIN,
-      expectedRPID: RP_ID
+      expectedOrigin: `${req.protocol}://${req.get('host')}`,
+      expectedRPID: req.hostname
     });
   } catch (error) {
     return res.status(400).json({ error: error.message });
@@ -480,7 +480,7 @@ async function generatePasskeyAuthenticationOptions(req, res) {
   }
 
   const currentOptions = await generateAuthenticationOptions({
-    rpID: RP_ID,
+    rpID: req.hostname,
     allowCredentials: listPasskeys(user).map((passkey) => ({
       id: fromBase64Url(passkey.id),
       transports: passkey.transports
@@ -519,8 +519,8 @@ async function verifyPasskeyAuthentication(req, res) {
     verification = await verifyAuthenticationResponse({
       response: req.body,
       expectedChallenge: pending.challenge,
-      expectedOrigin: RP_ORIGIN,
-      expectedRPID: RP_ID,
+      expectedOrigin: `${req.protocol}://${req.get('host')}`,
+      expectedRPID: req.hostname,
       credential: {
         id: credential.id,
         publicKey: credential.publicKey instanceof Buffer ? new Uint8Array(credential.publicKey) : credential.publicKey,
