@@ -393,7 +393,7 @@ async function generatePasskeyRegistrationOptions(req, res) {
     userName: user.username,
     attestationType: 'none',
     excludeCredentials: listPasskeys(user).map((passkey) => ({
-      id: fromBase64Url(passkey.id),
+      id: passkey.id,
       transports: passkey.transports
     })),
     authenticatorSelection: {
@@ -482,7 +482,7 @@ async function generatePasskeyAuthenticationOptions(req, res) {
   const currentOptions = await generateAuthenticationOptions({
     rpID: req.hostname,
     allowCredentials: listPasskeys(user).map((passkey) => ({
-      id: fromBase64Url(passkey.id),
+      id: passkey.id,
       transports: passkey.transports
     })),
     userVerification: 'required'
