@@ -56,9 +56,9 @@
           <section class="col-lg-5">
             <form class="login-panel p-4 p-md-5" method="post" action="/login" data-login-form>
             <div class="mb-4">
-              <div class="security-kicker">Adaptive identity assurance</div>
+              <div class="security-kicker">100% Passwordless Authentication</div>
               <h2 class="h4 fw-bold mb-1">Session Authorization Gate</h2>
-              <p class="muted-copy mb-0">Password success starts the ATO risk engine, not a session.</p>
+              <p class="muted-copy mb-0">Use your device's biometric scanner to log in securely.</p>
             </div>
 
             <% if (error) { %>
@@ -71,14 +71,19 @@
             </div>
 
             <div class="mb-3">
-              <label class="form-label" for="password">Password</label>
-              <input class="form-control form-control-lg" id="password" name="password" type="password" autocomplete="current-password" placeholder="Enter your password" required>
+              <button class="btn btn-bob btn-lg w-100 mb-2" type="button" data-passkey-login>Login with Fingerprint / Passkey</button>
+              <div class="form-text text-muted">Secure, phishing-resistant cloud-synced passkeys.</div>
             </div>
 
-            <div class="mb-3">
-              <button class="btn btn-bob btn-lg w-100 mb-2" type="button" data-passkey-login>Login with Fingerprint / Passkey</button>
-              <div class="form-text text-muted">Use a previously enrolled device fingerprint or biometric passkey.</div>
+            <div class="text-center mb-3">
+              <button type="button" class="btn btn-link text-muted small text-decoration-none" onclick="document.getElementById('passwordFallback').classList.toggle('d-none'); document.getElementById('password').required = !document.getElementById('password').required;">First time here? Use Password to Enroll</button>
             </div>
+
+            <div id="passwordFallback" class="d-none">
+              <div class="mb-3">
+                <label class="form-label" for="password">Password</label>
+                <input class="form-control form-control-lg" id="password" name="password" type="password" autocomplete="current-password" placeholder="Enter your password">
+              </div>
 
             <div class="mb-3 form-check form-switch">
               <input class="form-check-input" type="checkbox" role="switch" id="mobileFingerprintEnabled" data-mobile-fingerprint-enabled>
@@ -106,7 +111,14 @@
                 <div><span>Browser</span><strong data-preview-mode>Collecting</strong></div>
               </div>
 
-              <button class="btn btn-bob btn-lg w-100" type="submit">Verify Password and Run ATO-Shield</button>
+              <button class="btn btn-outline-dark btn-lg w-100" type="submit">Verify Password (Fallback)</button>
+            </div>
+              
+              <div class="mt-4 text-center">
+                <button class="btn btn-link text-muted small text-decoration-none" type="button" data-bs-toggle="modal" data-bs-target="#qrModal">Login via Cross-Device QR</button>
+                <br>
+                <button class="btn btn-link text-muted small text-decoration-none" type="button" data-bs-toggle="modal" data-bs-target="#recoveryModal">Lost device? Use Backup Code</button>
+              </div>
             </form>
           </section>
         </div>
@@ -141,11 +153,120 @@
           </div>
         </div>
       </section>
+
+      <!-- Recovery Modal -->
+      <div class="modal fade" id="recoveryModal" tabindex="-1" aria-labelledby="recoveryModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+          <div class="modal-content">
+            <form method="post" action="/recovery-login">
+              <div class="modal-header border-0 pb-0">
+                <h5 class="modal-title fw-bold" id="recoveryModalLabel">Account Recovery</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+              </div>
+              <div class="modal-body">
+                <p class="text-muted small mb-4">If you have lost access to your device, you can use a backup recovery code to regain access to your account.</p>
+                <div class="mb-3">
+                  <label class="form-label" for="recoveryUsername">Username</label>
+                  <input class="form-control" id="recoveryUsername" name="username" required>
+                </div>
+                <div class="mb-3">
+                  <label class="form-label" for="recoveryCode">Recovery Code</label>
+                  <input class="form-control font-monospace" id="recoveryCode" name="recoveryCode" placeholder="XXXX-XXXX-XXXX" required>
+                </div>
+                <!-- Telemetry fields required for trust pulse logging -->
+                <input type="hidden" name="fingerprint">
+                <input type="hidden" name="clientHour">
+                <input type="hidden" name="networkScope">
+                <input type="hidden" name="incognito">
+              </div>
+              <div class="modal-footer border-0 pt-0">
+                <button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancel</button>
+                <button type="submit" class="btn btn-bob">Verify Code</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      </div>
     </main>
-    <script>
-      window.__trustpulseLogin = { loginUrl: '/login' };
-    </script>
+
+    <!-- QR Code Login Modal -->
+    <div class="modal fade" id="qrModal" tabindex="-1">
+      <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+          <div class="modal-header border-0 pb-0">
+            <h5 class="modal-title fw-bold">Login via QR Code</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+          </div>
+          <div class="modal-body text-center">
+            <p class="text-muted small mb-4">Open the portal on your already logged-in device and scan this QR code to log into this device instantly.</p>
+            <div id="qrCodeContainer" class="d-flex justify-content-center mb-3">
+              <div class="spinner-border text-primary" role="status"><span class="visually-hidden">Loading...</span></div>
+            </div>
+            <p id="qrStatusText" class="text-warning fw-bold small">Waiting to be scanned...</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script src="/js/contextCollector.js"></script>
     <script src="/js/passkeyAuth.js"></script>
+
+    <script>
+      let qrPollInterval = null;
+
+      document.getElementById('qrModal').addEventListener('show.bs.modal', async () => {
+        const container = document.getElementById('qrCodeContainer');
+        const statusText = document.getElementById('qrStatusText');
+        container.innerHTML = '<div class="spinner-border text-primary" role="status"><span class="visually-hidden">Loading...</span></div>';
+        statusText.innerText = 'Generating QR code...';
+        statusText.className = 'text-warning fw-bold small';
+        if (qrPollInterval) { clearInterval(qrPollInterval); qrPollInterval = null; }
+
+        try {
+          const res = await fetch('/api/qr/generate', { method: 'POST' });
+          if (!res.ok) throw new Error('Server returned ' + res.status);
+          const data = await res.json();
+          if (!data.token || !data.qrImage) throw new Error('Invalid response from server');
+
+          // Render QR as plain img — no CDN library needed
+          container.innerHTML = '<img src="' + data.qrImage + '" alt="QR Code" width="220" height="220" style="border-radius:8px;">';
+          statusText.innerText = 'Waiting to be scanned...';
+          statusText.className = 'text-warning fw-bold small';
+
+          const fpData = (typeof window.__trustpulseCollectContext === 'function')
+            ? window.__trustpulseCollectContext() : {};
+          const queryParams = new URLSearchParams(fpData).toString();
+
+          qrPollInterval = setInterval(async () => {
+            try {
+              const pollRes = await fetch('/api/qr/status?token=' + encodeURIComponent(data.token) + '&' + queryParams);
+              const pollData = await pollRes.json();
+              if (pollData.success && pollData.redirect) {
+                statusText.innerText = '✅ APPROVED! Redirecting...';
+                statusText.className = 'text-success fw-bold small';
+                clearInterval(qrPollInterval);
+                window.location.href = pollData.redirect;
+              } else if (pollData.error) {
+                statusText.innerText = pollData.error;
+                statusText.className = 'text-danger fw-bold small';
+                clearInterval(qrPollInterval);
+              }
+            } catch (pollErr) {
+              console.error('QR poll error:', pollErr);
+            }
+          }, 2000);
+
+        } catch (err) {
+          console.error('QR generation error:', err);
+          container.innerHTML = '<p class="text-danger small">Failed to generate QR. Please try again.</p>';
+          statusText.innerText = '';
+        }
+      });
+
+      document.getElementById('qrModal').addEventListener('hidden.bs.modal', () => {
+        if (qrPollInterval) { clearInterval(qrPollInterval); qrPollInterval = null; }
+      });
+    </script>
   </body>
 </html>

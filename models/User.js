@@ -61,6 +61,10 @@ const userSchema = new mongoose.Schema(
       ],
       default: []
     },
+    recoveryCodes: {
+      type: [String],
+      default: []
+    },
     role: {
       type: String,
       enum: ['customer', 'admin'],

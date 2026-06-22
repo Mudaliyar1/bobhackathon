@@ -2,6 +2,7 @@ const bcrypt = require('bcryptjs');
 const crypto = require('crypto');
 const User = require('../models/User');
 const LoginLog = require('../models/LoginLog');
+const QRAuth = require('../models/QRAuth');
 const { calculateRisk } = require('../middleware/riskEngine');
 const { getThreshold, setThreshold } = require('../middleware/configStore');
 const {
@@ -11,6 +12,7 @@ const {
   verifyAuthenticationResponse
 } = require('@simplewebauthn/server');
 const { isoUint8Array } = require('@simplewebauthn/server/helpers');
+const QRCode = require('qrcode');
 
 const RP_NAME = process.env.RP_NAME || 'TrustPulse: ATO-Shield';
 const RP_ID = process.env.RP_ID || 'localhost';
@@ -397,7 +399,7 @@ async function generatePasskeyRegistrationOptions(req, res) {
       transports: passkey.transports
     })),
     authenticatorSelection: {
-      residentKey: 'preferred',
+      residentKey: 'required',
       userVerification: 'required'
     }
   });
@@ -777,6 +779,208 @@ function logout(req, res) {
   });
 }
 
+async function generateRecoveryCodes(req, res) {
+  try {
+    if (!req.session.user) {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+
+
+
+    const user = await User.findById(req.session.user.id);
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    const rawCodes = [];
+    const hashedCodes = [];
+
+    for (let i = 0; i < 10; i++) {
+      const randomBytes = crypto.randomBytes(6).toString('hex').toUpperCase();
+      const formattedCode = `${randomBytes.slice(0, 4)}-${randomBytes.slice(4, 8)}-${randomBytes.slice(8, 12)}`;
+      rawCodes.push(formattedCode);
+      hashedCodes.push(await bcrypt.hash(formattedCode, 10));
+    }
+
+    user.recoveryCodes = hashedCodes;
+    await user.save();
+
+    return res.json({ codes: rawCodes });
+  } catch (err) {
+    console.error('Error generating recovery codes:', err);
+    return res.status(500).json({ error: err.message });
+  }
+}
+
+async function loginWithRecoveryCode(req, res) {
+  const { username, recoveryCode } = req.body;
+
+  if (!username || !recoveryCode) {
+    return res.redirect('/?error=Username and recovery code are required');
+  }
+
+  const user = await User.findOne({ username: String(username).toLowerCase().trim() });
+  if (!user || !user.recoveryCodes || user.recoveryCodes.length === 0) {
+    return res.redirect('/?error=Invalid username or recovery code');
+  }
+
+  const codeToVerify = String(recoveryCode).trim().toUpperCase();
+
+  let matchedIndex = -1;
+  for (let i = 0; i < user.recoveryCodes.length; i++) {
+    const isMatch = await bcrypt.compare(codeToVerify, user.recoveryCodes[i]);
+    if (isMatch) {
+      matchedIndex = i;
+      break;
+    }
+  }
+
+  if (matchedIndex === -1) {
+    return res.redirect('/?error=Invalid recovery code');
+  }
+
+  user.recoveryCodes.splice(matchedIndex, 1);
+  const nextSessionVersion = await bumpSessionVersion(user);
+  await user.save();
+
+  const fingerprintMetadata = collectFingerprintMetadata(req);
+  const existingTrustToken = getCookieValue(req, 'trustpulse_device');
+  const deviceTokenHash = existingTrustToken ? hashToken(existingTrustToken) : null;
+  const networkSignature = deriveNetworkSignature(req);
+
+  await enrollTrustedContext(user, {
+    browserFingerprint: fingerprintMetadata.browserFingerprint,
+    networkSignature: networkSignature,
+    deviceTokenHash: deviceTokenHash || hashToken(issueTrustToken(res))
+  });
+
+  await LoginLog.create({
+    user_id: user._id,
+    status: 'ALLOWED',
+    sessionAuthorized: true,
+    stepUpVerified: true,
+    stepUpMethod: 'recovery-code',
+    ipAddress: getClientIp(req),
+    browserFingerprint: fingerprintMetadata.browserFingerprint || 'recovery-fallback',
+    loginHour: fingerprintMetadata.clientHour || new Date().getHours(),
+    incognito: req.body.incognito === 'true',
+    loginDuration: req.body.loginDuration ? Number(req.body.loginDuration) : 0,
+    screenWidth: Number(req.body.screenWidth) || undefined,
+    screenHeight: Number(req.body.screenHeight) || undefined,
+    userAgent: fingerprintMetadata.userAgent,
+    language: fingerprintMetadata.language,
+    timezone: fingerprintMetadata.timezone,
+    platform: fingerprintMetadata.platform,
+    riskScore: 0,
+    deviceTrusted: true,
+    networkTrusted: true,
+    riskReasons: [{ label: 'Recovery Code Used', points: 0, detail: 'User authenticated via backup recovery code' }],
+    replayEvents: ['Recovery Code Match', 'Session Authorized']
+  });
+
+  req.session.user = {
+    id: user._id.toString(),
+    username: user.username,
+    email: user.email,
+    role: user.role
+  };
+
+  req.session.sessionVersion = nextSessionVersion;
+  req.session.currentFingerprint = fingerprintMetadata.browserFingerprint;
+  req.session.onboardingGrace = true;
+
+  return res.redirect(user.role === 'admin' ? '/admin' : '/portal');
+}
+
+async function generateQR(req, res) {
+  try {
+    const qrSession = await QRAuth.create({});
+    // Generate the QR image server-side so the browser needs no CDN library
+    const qrDataUrl = await QRCode.toDataURL(qrSession.token, { width: 220, margin: 2 });
+    res.json({ token: qrSession.token, qrImage: qrDataUrl });
+  } catch (err) {
+    console.error('generateQR error:', err);
+    res.status(500).json({ error: 'Failed to generate QR session' });
+  }
+}
+
+async function pollQRStatus(req, res) {
+  try {
+    const { token, clientHour, screenWidth, screenHeight, userAgent, language, timezone, platform } = req.query;
+    if (!token) return res.status(400).json({ error: 'Missing token' });
+
+    const qrSession = await QRAuth.findOne({ token });
+    if (!qrSession) return res.status(404).json({ error: 'Session expired or not found' });
+
+    if (qrSession.status === 'APPROVED' && qrSession.user_id) {
+      const user = await User.findById(qrSession.user_id);
+      if (!user) return res.status(404).json({ error: 'User not found' });
+
+      // Destroy the QR token so it can't be re-used
+      await QRAuth.deleteOne({ _id: qrSession._id });
+
+      // Record the successful login via QR Code cross-device auth
+      await LoginLog.create({
+        user_id: user._id,
+        status: 'ALLOWED',
+        sessionAuthorized: true,
+        stepUpVerified: true,
+        stepUpMethod: 'cross-device-qr',
+        ipAddress: getClientIp(req),
+        browserFingerprint: 'qr-login-fingerprint',
+        loginHour: Number(clientHour) || new Date().getHours(),
+        incognito: false,
+        loginDuration: 0,
+        screenWidth: Number(screenWidth) || undefined,
+        screenHeight: Number(screenHeight) || undefined,
+        userAgent: userAgent || '',
+        language: language || '',
+        timezone: timezone || '',
+        platform: platform || '',
+        riskScore: 0,
+        deviceTrusted: true,
+        networkTrusted: true,
+        riskReasons: [{ label: 'QR Code Login', points: 0, detail: 'Logged in via Cross-Device QR scan from an already trusted device' }],
+        replayEvents: ['Cross-Device Token Match', 'Session Authorized']
+      });
+
+      req.session.user = {
+        id: user._id,
+        username: user.username,
+        role: user.role
+      };
+
+      return res.json({ success: true, redirect: '/portal' });
+    }
+
+    res.json({ status: qrSession.status });
+  } catch (err) {
+    console.error('pollQRStatus error:', err);
+    res.status(500).json({ error: 'Failed to check status' });
+  }
+}
+
+async function approveQR(req, res) {
+  try {
+    if (!req.session.user) return res.status(401).json({ error: 'Unauthorized' });
+
+    const { token } = req.body;
+    if (!token) return res.status(400).json({ error: 'Missing token' });
+
+    const qrSession = await QRAuth.findOne({ token, status: 'PENDING' });
+    if (!qrSession) return res.status(404).json({ error: 'Token invalid or expired' });
+
+    qrSession.status = 'APPROVED';
+    qrSession.user_id = req.session.user.id;
+    await qrSession.save();
+
+    res.json({ success: true });
+  } catch (err) {
+    console.error('approveQR error:', err);
+    res.status(500).json({ error: 'Failed to approve QR' });
+  }
+}
+
 module.exports = {
   seedDemoUsers,
   renderLogin,
@@ -793,5 +997,10 @@ module.exports = {
   sessionStatus,
   dashboardApi,
   updateThreshold,
-  logout
+  logout,
+  generateRecoveryCodes,
+  loginWithRecoveryCode,
+  generateQR,
+  pollQRStatus,
+  approveQR
 };

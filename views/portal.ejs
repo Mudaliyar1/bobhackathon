@@ -9,7 +9,7 @@
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="/css/style.css" rel="stylesheet">
   </head>
-  <body>
+  <body data-current-fingerprint="<%= currentFingerprint || '' %>" data-fingerprint-enrolled="<%= passkeyCount > 0 ? 'true' : 'false' %>">
     <nav class="navbar bg-white brand-bar">
       <div class="container">
         <span class="navbar-brand d-flex align-items-center gap-2 fw-bold">
@@ -75,6 +75,24 @@
         </div>
 
         <div class="row g-3 mt-4">
+          <div class="col-12">
+            <div class="operator-note bg-light text-dark border h-100">
+              <strong>Account Recovery (Backup Codes)</strong>
+              <span>Generate 10 secure backup codes. Print them and keep them in a safe place. If you lose your phone, you can use one of these codes to log in securely.</span>
+              <div class="mt-2">
+                <button class="btn btn-outline-dark btn-sm" type="button" id="generateRecoveryBtn">Generate Backup Codes</button>
+              </div>
+              <div id="recoveryCodesContainer" class="mt-3 d-none">
+                <div class="alert alert-warning small mb-0">
+                  <strong>Save these now!</strong> They will only be shown once. Each code can only be used once.
+                  <pre id="recoveryCodesList" class="mt-2 mb-0 bg-white p-2 border rounded font-monospace" style="column-count: 2;"></pre>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="row g-3 mt-4">
           <div class="col-lg-4">
             <div class="bank-widget balance-widget">
               <span>Available Balance</span>
@@ -114,18 +132,111 @@
               <strong>ATO-Shield Outcome</strong>
               <span>No adaptive challenge was needed because the environment matched the customer's normal access pattern.</span>
             </div>
+            <div class="mt-3">
+              <button class="btn btn-outline-primary w-100" data-bs-toggle="modal" data-bs-target="#qrScannerModal">Cross-Device Login</button>
+            </div>
           </div>
         </div>
       </section>
     </main>
+
+    <!-- QR Scanner Modal -->
+    <div class="modal fade" id="qrScannerModal" tabindex="-1">
+      <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+          <div class="modal-header border-0 pb-0">
+            <h5 class="modal-title fw-bold">Scan QR to Login</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+          </div>
+          <div class="modal-body text-center">
+            <div id="reader" width="100%"></div>
+            <p id="scannerStatus" class="text-muted small mt-2">Point your camera at the QR code on your other device.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
     <script>
+      var _p = document.body.dataset;
       window.__trustpulsePortal = {
-        currentFingerprint: '<%= currentFingerprint || '' %>',
-        fingerprintEnrolled: <%= passkeyCount > 0 ? 'true' : 'false' %>
+        currentFingerprint: _p.currentFingerprint || '',
+        fingerprintEnrolled: _p.fingerprintEnrolled === 'true'
       };
     </script>
     <script src="/js/portalFingerprint.js"></script>
     <script src="/js/passkeyPortal.js"></script>
     <script src="/js/sessionGuard.js"></script>
+    <script>
+      document.getElementById('generateRecoveryBtn').addEventListener('click', async () => {
+        if (!confirm('Generating new backup codes will invalidate any old ones. Continue?')) return;
+        try {
+          const res = await fetch('/api/recovery/generate', { method: 'POST' });
+          if (!res.ok) {
+            const errData = await res.json().catch(() => ({}));
+            throw new Error(errData.error || 'Failed to generate codes: ' + res.status);
+          }
+          const data = await res.json();
+          document.getElementById('recoveryCodesList').innerText = data.codes.join('\n');
+          document.getElementById('recoveryCodesContainer').classList.remove('d-none');
+          document.getElementById('generateRecoveryBtn').disabled = true;
+        } catch (err) {
+          alert(err.message);
+        }
+      });
+
+      // --- QR Scanner Logic ---
+      let html5QrcodeScanner;
+
+      document.getElementById('qrScannerModal').addEventListener('show.bs.modal', () => {
+        document.getElementById('scannerStatus').innerText = 'Point your camera at the QR code on your other device.';
+        document.getElementById('scannerStatus').className = 'text-muted small mt-2';
+        
+        // Initialize the scanner when the modal opens
+        html5QrcodeScanner = new Html5QrcodeScanner("reader", { fps: 10, qrbox: {width: 250, height: 250} }, false);
+        html5QrcodeScanner.render(onScanSuccess, onScanFailure);
+      });
+
+      document.getElementById('qrScannerModal').addEventListener('hidden.bs.modal', () => {
+        if (html5QrcodeScanner) {
+          html5QrcodeScanner.clear().catch(error => console.error("Failed to clear html5QrcodeScanner. ", error));
+        }
+      });
+
+      async function onScanSuccess(decodedText, decodedResult) {
+        if (html5QrcodeScanner) {
+          html5QrcodeScanner.clear();
+        }
+        document.getElementById('scannerStatus').innerText = 'Approving login...';
+        document.getElementById('scannerStatus').className = 'text-warning fw-bold small mt-2';
+
+        try {
+          const res = await fetch('/api/qr/approve', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ token: decodedText })
+          });
+          
+          if (!res.ok) throw new Error('Failed to approve QR');
+          
+          document.getElementById('scannerStatus').innerText = 'Success! The other device is now logged in.';
+          document.getElementById('scannerStatus').className = 'text-success fw-bold small mt-2';
+          
+          setTimeout(() => {
+            const modal = bootstrap.Modal.getInstance(document.getElementById('qrScannerModal'));
+            modal.hide();
+          }, 3000);
+        } catch (err) {
+          document.getElementById('scannerStatus').innerText = 'Error: Invalid or expired QR code.';
+          document.getElementById('scannerStatus').className = 'text-danger fw-bold small mt-2';
+          console.error(err);
+        }
+      }
+
+      function onScanFailure(error) {
+        // handle scan failure safely
+      }
+    </script>
   </body>
 </html>

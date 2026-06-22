@@ -192,4 +192,18 @@
   loadMobileFingerprintPreference();
 
   applyContext();
+
+  window.__trustpulseCollectContext = function() {
+    const browserContext = collectBrowserContext();
+    
+    return {
+      clientHour: String(browserContext.hour),
+      screenWidth: String(browserContext.width),
+      screenHeight: String(browserContext.height),
+      userAgent: browserContext.userAgent,
+      language: browserContext.language,
+      timezone: browserContext.timezone,
+      platform: browserContext.platform
+    };
+  };
 })();

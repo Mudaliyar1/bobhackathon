@@ -19,6 +19,11 @@ router.post('/api/device/enroll', authController.enrollFingerprint);
 router.get('/api/session/status', authController.sessionStatus);
 router.get('/api/admin/dashboard', authController.dashboardApi);
 router.post('/api/admin/threshold', authController.updateThreshold);
+router.post('/api/recovery/generate', authController.generateRecoveryCodes);
+router.post('/recovery-login', authController.loginWithRecoveryCode);
+router.post('/api/qr/generate', authController.generateQR);
+router.get('/api/qr/status', authController.pollQRStatus);
+router.post('/api/qr/approve', authController.approveQR);
 router.post('/logout', authController.logout);
 
 module.exports = router;
