@@ -24,6 +24,7 @@ router.post('/recovery-login', authController.loginWithRecoveryCode);
 router.post('/api/qr/generate', authController.generateQR);
 router.get('/api/qr/status', authController.pollQRStatus);
 router.post('/api/qr/approve', authController.approveQR);
+router.get('/enroll-passkey', authController.renderEnrollPasskey);
 router.post('/logout', authController.logout);
 
 module.exports = router;

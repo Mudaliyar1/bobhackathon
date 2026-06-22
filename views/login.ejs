@@ -90,14 +90,19 @@
             <input type="hidden" name="platform">
             <input type="hidden" name="localHour">
 
-            <div class="text-center mb-3">
-              <button type="button" class="btn btn-link text-muted small text-decoration-none"
+            <div class="mt-4 text-center">
+              <button class="btn btn-link text-muted small text-decoration-none" type="button" data-bs-toggle="modal" data-bs-target="#qrModal">Login via Cross-Device QR</button>
+              <br>
+              <button class="btn btn-link text-muted small text-decoration-none" type="button" data-bs-toggle="modal" data-bs-target="#recoveryModal">Lost device? Use Backup Code</button>
+              <br>
+              <button type="button" class="btn btn-link small text-decoration-none mt-2"
+                style="color:rgba(150,150,150,0.4); font-size:.75rem;"
                 data-bs-toggle="collapse" data-bs-target="#passwordFallback" aria-expanded="false" aria-controls="passwordFallback">
-                First time here? Use Password to Enroll
+                Emergency password access
               </button>
             </div>
 
-            <div id="passwordFallback" class="collapse">
+            <div id="passwordFallback" class="collapse mt-3">
               <div class="mb-3">
                 <label class="form-label" for="password">Password</label>
                 <input class="form-control form-control-lg" id="password" name="password" type="password" autocomplete="current-password" placeholder="Enter your password">
@@ -117,13 +122,8 @@
 
               <button class="btn btn-outline-dark btn-lg w-100" type="submit">Verify Password (Fallback)</button>
             </div>
-
-            <div class="mt-4 text-center">
-              <button class="btn btn-link text-muted small text-decoration-none" type="button" data-bs-toggle="modal" data-bs-target="#qrModal">Login via Cross-Device QR</button>
-              <br>
-              <button class="btn btn-link text-muted small text-decoration-none" type="button" data-bs-toggle="modal" data-bs-target="#recoveryModal">Lost device? Use Backup Code</button>
-            </div>
             </form>
+
 
           </section>
         </div>

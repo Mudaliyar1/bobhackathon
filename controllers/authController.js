@@ -379,6 +379,12 @@ async function handleLogin(req, res) {
   req.session.currentFingerprint = riskContext.browserFingerprint;
   req.session.onboardingGrace = onboardingGrace;
 
+  // If no passkeys enrolled yet, force enrollment before portal access
+  const passkeyCount = listPasskeys(user).length;
+  if (user.role !== 'admin' && passkeyCount === 0) {
+    return res.redirect('/enroll-passkey');
+  }
+
   return res.redirect(user.role === 'admin' ? '/admin' : '/portal');
 }
 
@@ -968,6 +974,12 @@ async function pollQRStatus(req, res) {
       req.session.currentFingerprint = 'qr-approved';
       req.session.onboardingGrace = false;
 
+      // If no passkeys enrolled yet, force enrollment on this new device
+      const passkeyCount = listPasskeys(freshUser).length;
+      if (passkeyCount === 0) {
+        return res.json({ success: true, redirect: '/enroll-passkey' });
+      }
+
       return res.json({ success: true, redirect: '/portal' });
     }
 
@@ -999,6 +1011,11 @@ async function approveQR(req, res) {
   }
 }
 
+async function renderEnrollPasskey(req, res) {
+  if (!req.session.user) return res.redirect('/');
+  return res.render('enroll-passkey');
+}
+
 module.exports = {
   seedDemoUsers,
   renderLogin,
@@ -1020,5 +1037,6 @@ module.exports = {
   loginWithRecoveryCode,
   generateQR,
   pollQRStatus,
-  approveQR
+  approveQR,
+  renderEnrollPasskey
 };
